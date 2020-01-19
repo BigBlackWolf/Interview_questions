@@ -1,20 +1,147 @@
-from django.views import View
-from django.views.generic import ListView
-from django.shortcuts import render
-from django.http import HttpResponse
-
-from pygments import highlight
-from pygments.lexers import PythonLexer
-from pygments.formatters import HtmlFormatter
+from django.views.generic import TemplateView
 
 
-class PythonQuestions(View):
-
-    def get(self, request, *args, **kwargs):
-        text = 'class Test:'
-        result = {'text': highlight(text, PythonLexer(), HtmlFormatter())}
-        return render(request, context=result, template_name='index.html')
+class PythonQuestions(TemplateView):
+    template_name = 'index.html'
 
 
-class Terminal:
-    pass
+#TODO: 6, 10, 14, 17
+"""Answers
+======== Теоретическая часть ========
+
+1. Сборщик мусора - удаляет обьект, если нет вызовов и нет ссылок на обьект
+
+2. Шаблоны проектирования - нужны для интерфейсов, а не конкретных решений, композиция лучше наследования
+    1) Singleton (для гарантии единственного экземпляра, реализуется в __new__)
+    2) Декоратор 
+    3) Итератор 
+    4) Фасад (прослойка между сложной снутренней структурой и клиентом, интерфейс)
+    5) Адаптер (у прошлого класса был метод write, для примера, а у ново добавленного - нет, в новый добавляеться метод "переходник" с названием write)
+    6) Фабрика (Обект для создания других обьектов)
+    7) Прототип (Новый классы наследуются от прототипа и только задают логику прописаных методов)
+    8) 
+    
+3. with .. as 
+    Отвечает за открытие и коректное закрытие чего либо (файла, потока и тд)
+    Обязательно должны быть реализованы методы __enter__ и __exit__, также если есть __del__ выполняет функции деструктора
+    - with A() as a:
+        with B() as b:
+            suite 
+    - with A() as a, B() as b:
+        suite 
+    Это одно и тоже
+    
+4. Декораторы - обертка функции (до и/или после)
+    Можно декорировать методи (нужно передавать self), функции
+    Лайфак, если декорировать метод __call__ можно делать слепки обьекта (меморизация)
+    Реализация:
+        def decorator_function(func):
+            def wrapper(*args, **kwargs):
+                print('Some staff')
+                value = func(*args, **kwargs)
+                print('Some staff')
+                return value
+            return wrapper
+            
+        ======================================
+        @decorator_function
+        def test(*args, **kwargs):
+            print('test')
+
+5. import
+    - Избегание циклических импортов: Поместить все импорты в центральный файл (например __init__.py)
+    - import ищет по sys.path
+    - при импорте выполняется код в __init__.py если такой есть
+    - Сначало поиск идет по встроеным модулям, потом по тем, которые указаны в sys.path, потом директории указанные в PYTHONPATH
+    
+6. OOP
+
+7. os, sys, functools, filter, zip
+    1) os - для работы с операционкой (все что можно делать в терминале: chmod, mkdir, rename...)
+    2) sys - доступ к переменным и функциям, взаимодействующими с интерпритатором (path, argv, getsizeof, stdin, stdout)
+    3) functools -  либа с полезными функциями
+        3.1) partial(func, *args, **kwargs) - передает функцию как обьект с аргументами.
+            basetwo = partial(int, base=2)
+            basetwo('100010101') -> переведет из двоичного числа в десятичное
+        3.2) reduce(function, iterable[, initializer]) - функция для сворачивает итеративно, начиная с первых двух, применяя к ним функцию
+            reduce(lambda x,y: a if a>b else b, list) -> поиск максимума в списке 
+    4) map(function, iterable) - применить ко всем елементам
+        map(lambda x: x+1, list)
+    5) filter(func, iterable) - для фильтрации значений по функции
+        filter(lambda x: x>2, list) 
+    6) zip(*iterable) - для обединения итеративных обектов одинаковой длинны (возвращает list tuple`ов)
+        names = ['Вася', 'Таня', 'Надя', 'Кирилл']
+        ages = [10, 15, 4, 13]
+        result = zip(names, ages)
+        # [('Вася', 10), ('Таня', 15), ('Надя', 4), ('Кирилл', 13)]
+
+8. Множественное наследование (MRO3)
+    MRO (method resolution order) - порядок по которому питон выясняет из какого класса порядка брать функцию  
+    class A()
+    class B(A)
+    class C(A)
+    class D(C, B)
+    Поиск идет по такой очереди:
+        1) Сначала поиск по своим методам (в D)
+        2) Потом у родителей (по очереди: C, потом  В)
+        3) Потом у родителей родителей (в А, тоже по очереди) 
+
+9. Области видимости (local, nonlocal, global)
+    a = 1
+    def test():
+        b = 2
+        def new():
+            c = 3
+    a -> global, b -> local, c -> nonlocal
+
+10. Metaclass, type
+    - Metaclass
+    - Создание класса через type: type(classname, superclasses, attributes_dict)
+        type('Robot', (Machine,), {'age': 0, 'hello': lambda self: "Hello, I am " + self.name})
+        class Robot(Machine):
+            age = 0
+            def hello:
+                return "Hello, I am" + self.name
+
+11. Типы данных
+    Immutable: tuple, numbers(int, float), string, bool
+    Mutable: list, dict, set
+
+12. Передача аргументов в функцию
+    - Изменяемые типы передаются по ссылке и после манипуляций меняются везде
+    - Неизменяемые типы передаются по значению и не меняются, если их не передать обратно
+
+13. Генератор, итератор
+    Итератор - это обьект, реализующий методы __iter__(сам является итерируемым обьектом) и __next__ (который должен вернуть следующий обьект по очереди)
+        Можно реализовать итерацию до определенного события (рандом, пока не выпадет 5 например)
+    Генератор - подвид итераторов, с промежуточной модификацией или созданием значений (генерацией) (может иметь yield!!!) 
+
+14. Корутина (определение, создание)
+
+15. List/dict comprehension (Генерация) [i for i in range(5)] {i, j for enumerate(list)}
+
+16. '_' vs '__'
+    '_':
+        - Если не хотим мусорить в памяти в цикле
+        - Для избежания импорта через *
+    '__':
+        - Нельзя модифицировать напрямую
+        - class A:
+            def __test(): print('I am A')
+            def test(): self.__test()
+          class B(A):
+            def __test(): print('I am B')
+          var = B()
+          b.test() # I am A
+
+17. Threading, multiprocess, GIL
+
+======== Сторонние модули ========
+1. Testing(mocking, unittest)
+
+2. ascyncio
+
+3. Celery
+
+4. Django 
+"""
